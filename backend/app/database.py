@@ -4,10 +4,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+import tempfile
+
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
-    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
-        DATABASE_URL = "sqlite:////tmp/priceguard.db"
+    # Check for serverless / read-only filesystem environments (Vercel, AWS Lambda)
+    is_serverless = bool(
+        os.getenv("VERCEL")
+        or os.getenv("VERCEL_ENV")
+        or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+        or os.getenv("LAMBDA_TASK_ROOT")
+        or os.path.exists("/var/task")
+    )
+    if is_serverless:
+        db_path = os.path.join(tempfile.gettempdir(), "priceguard.db")
+        DATABASE_URL = f"sqlite:///{db_path}"
     else:
         DATABASE_URL = "sqlite:///./priceguard.db"
 

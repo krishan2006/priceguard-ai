@@ -18,14 +18,24 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    is_serverless = bool(
+        os.getenv("VERCEL")
+        or os.getenv("VERCEL_ENV")
+        or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+        or os.getenv("LAMBDA_TASK_ROOT")
+        or os.path.exists("/var/task")
+    )
+
     # Startup
-    from app.database import init_db
+    try:
+        from app.database import init_db
+        logger.info("🚀 PriceGuard AI starting up...")
+        init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.warning(f"Database init notice: {e}")
     
-    logger.info("🚀 PriceGuard AI starting up...")
-    init_db()
-    logger.info("✅ Database initialized")
-    
-    if not os.getenv("VERCEL") and not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    if not is_serverless:
         from app.scheduler import start_scheduler, reschedule_all_tasks
         start_scheduler()
         reschedule_all_tasks()
@@ -34,7 +44,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    if not os.getenv("VERCEL") and not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    if not is_serverless:
         from app.scheduler import stop_scheduler
         stop_scheduler()
         logger.info("👋 PriceGuard AI shutting down")
