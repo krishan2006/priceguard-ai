@@ -299,17 +299,18 @@ def calculate_match_score(
         breakdown["model"] = _token_overlap_ratio(query_attrs.normalized, candidate.get("name", ""))
 
     # Variant / generation
+    cand_norm = _normalize_text(candidate.get("name", ""))
     if query_attrs.generation:
-        cand_norm = _normalize_text(candidate.get("name", ""))
         if query_attrs.generation.lower() in cand_norm:
             breakdown["variant"] = 1.0
         else:
-            # Penalize if candidate has a DIFFERENT generation
             other_gens = [g for g in ["pro max", "pro", "ultra", "plus", "lite", "mini", "se"]
                           if g != query_attrs.generation.lower() and g in cand_norm]
             breakdown["variant"] = 0.0 if other_gens else 0.4
     else:
-        breakdown["variant"] = 0.6  # no generation specified — don't penalize
+        # If user didn't request a generation, penalize Pro/Plus/Ultra/Max additions
+        has_extra_gen = any(g in cand_norm for g in ["pro max", "pro", "ultra", "plus", "lite", "mini", "se"])
+        breakdown["variant"] = 0.2 if has_extra_gen else 1.0
 
     # Storage
     if query_attrs.storage:
@@ -319,16 +320,16 @@ def calculate_match_score(
         else:
             # Check if a DIFFERENT storage variant is present — penalize
             other_storages = STORAGE_PATTERN.findall(cand_name_norm)
-            breakdown["storage"] = 0.0 if other_storages else 0.5
+            breakdown["storage"] = 0.0 if other_storages else 0.4
     else:
-        breakdown["storage"] = 0.6
+        breakdown["storage"] = 1.0
 
     # RAM
     if query_attrs.ram:
         cand_norm = _normalize_text(candidate.get("name", "") + " " + candidate.get("description", ""))
         breakdown["ram"] = 1.0 if query_attrs.ram.lower().replace(" ram", "") in cand_norm else 0.3
     else:
-        breakdown["ram"] = 0.6
+        breakdown["ram"] = 1.0
 
     # Color
     if query_attrs.color:
@@ -336,16 +337,15 @@ def calculate_match_score(
         if query_attrs.color.lower() in cand_norm:
             breakdown["color"] = 1.0
         else:
-            # No color info in candidate — mildly penalize
             breakdown["color"] = 0.4
     else:
-        breakdown["color"] = 0.6
+        breakdown["color"] = 1.0
 
     # Category
     if query_attrs.category and cand_attrs.category:
-        breakdown["category"] = 1.0 if query_attrs.category == cand_attrs.category else 0.0
+        breakdown["category"] = 1.0 if query_attrs.category == cand_attrs.category else 0.4
     else:
-        breakdown["category"] = 0.5
+        breakdown["category"] = 1.0
 
     # Fallback raw overlap
     breakdown["fallback"] = _token_overlap_ratio(query_attrs.normalized, _normalize_text(candidate.get("name", "")))
@@ -365,7 +365,7 @@ def calculate_match_score(
 
 
 def _score_to_label(score: float) -> str:
-    if score >= 0.90:
+    if score >= 0.88:
         return "EXACT"
     if score >= 0.75:
         return "STRONG"

@@ -20,22 +20,24 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     from app.database import init_db
-    from app.scheduler import start_scheduler, reschedule_all_tasks
     
     logger.info("🚀 PriceGuard AI starting up...")
     init_db()
     logger.info("✅ Database initialized")
     
-    start_scheduler()
-    reschedule_all_tasks()
-    logger.info("✅ Scheduler started")
+    if not os.getenv("VERCEL") and not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        from app.scheduler import start_scheduler, reschedule_all_tasks
+        start_scheduler()
+        reschedule_all_tasks()
+        logger.info("✅ Scheduler started")
     
     yield
     
     # Shutdown
-    from app.scheduler import stop_scheduler
-    stop_scheduler()
-    logger.info("👋 PriceGuard AI shutting down")
+    if not os.getenv("VERCEL") and not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        from app.scheduler import stop_scheduler
+        stop_scheduler()
+        logger.info("👋 PriceGuard AI shutting down")
 
 
 app = FastAPI(

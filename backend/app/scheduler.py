@@ -100,11 +100,44 @@ def resume_task(task_id: int):
         logger.info(f"Resumed task {task_id}")
 
 
+async def run_telegram_heartbeat():
+    """Sync Telegram updates for new subscribers and send heartbeat."""
+    try:
+        from app.agent.tools.telegram_service import sync_telegram_subscribers, send_telegram_heartbeat
+        await sync_telegram_subscribers()
+        db = get_db_session()
+        count = db.query(MonitoringTask).filter(MonitoringTask.is_active == True).count()
+        db.close()
+        await send_telegram_heartbeat(active_count=count)
+    except Exception as e:
+        logger.debug(f"Telegram heartbeat job: {e}")
+
+
 def start_scheduler():
     """Start the APScheduler."""
     if not scheduler.running:
         scheduler.start()
         logger.info("APScheduler started")
+
+        from app.agent.tools.telegram_service import sync_telegram_subscribers
+
+        # 1. Fast subscriber & message poll (every 5 seconds)
+        scheduler.add_job(
+            sync_telegram_subscribers,
+            trigger=IntervalTrigger(seconds=5),
+            id="telegram_fast_poller",
+            replace_existing=True,
+            next_run_time=datetime.utcnow() + timedelta(seconds=2),
+        )
+
+        # 2. Periodic status heartbeat broadcast (every 10 minutes)
+        scheduler.add_job(
+            run_telegram_heartbeat,
+            trigger=IntervalTrigger(minutes=10),
+            id="telegram_heartbeat",
+            replace_existing=True,
+            next_run_time=datetime.utcnow() + timedelta(seconds=10),
+        )
 
 
 def stop_scheduler():

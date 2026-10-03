@@ -171,7 +171,8 @@
   }
 
   /* Form Inputs */
-  .input-box {
+  .input-box,
+  .input-field {
     width: 100%;
     background: #0E1016;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -182,10 +183,12 @@
     transition: all 0.15s ease;
     outline: none;
   }
-  .input-box::placeholder {
+  .input-box::placeholder,
+  .input-field::placeholder {
     color: #667085;
   }
-  .input-box:focus {
+  .input-box:focus,
+  .input-field:focus {
     border-color: #7C3AED;
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
     background: #11141B;

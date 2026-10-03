@@ -313,6 +313,21 @@ async def run_monitoring_cycle(
         # Attempt email
         await send_email_notification(alert, task)
 
+        # Dispatch Telegram Bot alert
+        try:
+            from app.agent.tools.telegram_service import send_telegram_alert
+            await send_telegram_alert(
+                product_name=product_name,
+                current_price=current_price,
+                target_price=task.target_price,
+                price_change_pct=change_pct,
+                agent_reason=ai_reason,
+                source=source,
+            )
+            add_event(task_id, "📱", "Dispatched live alert to Telegram Bot")
+        except Exception as te:
+            logger.warning(f"Telegram dispatch error: {te}")
+
         add_event(task_id, "🔔", f"Notification sent via: {', '.join(notif_types)}")
         _save_event_to_db(db, task_id, "🔔", f"Notification sent", details=f"Types: {', '.join(notif_types)}")
 

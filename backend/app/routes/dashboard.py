@@ -1,6 +1,7 @@
 """Dashboard stats, agent logs, and demo routes."""
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -113,7 +114,67 @@ def health_check():
     return {
         "status": "healthy",
         "gemini_configured": bool(os.getenv("GEMINI_API_KEY")),
+        "groq_configured": bool(os.getenv("GROQ_API_KEY")),
+        "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN")),
         "serper_configured": bool(os.getenv("SERPER_API_KEY")),
         "smtp_configured": bool(os.getenv("SMTP_HOST")),
         "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
     }
+
+
+@router.get("/api/telegram/status")
+async def telegram_status():
+    """Get Telegram Bot connection status and subscribers count."""
+    from app.agent.tools.telegram_service import validate_telegram_bot, sync_telegram_subscribers, _load_subscribers
+    bot_val = await validate_telegram_bot()
+    sub_count = await sync_telegram_subscribers()
+    return {
+        "bot": bot_val,
+        "subscribers_count": sub_count,
+        "subscribers": list(_load_subscribers()),
+        "bot_username": bot_val.get("username", "Ai_pricing_detectionbot"),
+    }
+
+
+@router.post("/api/telegram/broadcast-test")
+async def telegram_broadcast_test():
+    """Send an immediate test alert / status message to all Telegram subscribers."""
+    from app.agent.tools.telegram_service import broadcast_telegram_message
+    msg = (
+        "🟢 *PriceGuard AI — Server Online*\n\n"
+        "Hello! Server is running and actively monitoring prices.\n"
+        "Live price alerts, product discoveries, and status updates will be sent here in real-time."
+    )
+    sent = await broadcast_telegram_message(msg)
+    return {
+        "success": True,
+        "message_sent": msg,
+        "subscribers_reached": sent,
+    }
+
+
+class TelegramSubscribePayload(BaseModel):
+    chat_id: str
+
+
+@router.post("/api/telegram/subscribe")
+async def telegram_subscribe(payload: TelegramSubscribePayload):
+    """Manually register a chat ID and send an immediate verification message."""
+    from app.agent.tools.telegram_service import register_subscriber, send_telegram_raw
+    cid = payload.chat_id.strip()
+    if not cid:
+        raise HTTPException(status_code=400, detail="chat_id cannot be empty")
+    
+    registered = register_subscriber(cid)
+    msg = (
+        "🚀 *PriceGuard AI Connected!*\n\n"
+        "Hello! Server is running and actively monitoring prices.\n"
+        "You will receive live price alerts and heartbeat status updates here."
+    )
+    sent = await send_telegram_raw(cid, msg)
+    return {
+        "success": registered,
+        "chat_id": cid,
+        "verified_sent": sent,
+    }
+

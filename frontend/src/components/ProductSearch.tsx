@@ -425,7 +425,7 @@ export default function ProductSearch({ onProductSelect, selectedProduct }: Prod
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="input-field pl-10"
+            className="w-full bg-[#0E1016] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
             placeholder='e.g. "iPhone 15 128GB Black" or "Samsung S25 Ultra 256GB"'
           />
         </div>

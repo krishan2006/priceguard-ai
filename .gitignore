@@ -13,5 +13,9 @@ venv/
 .DS_Store
 .idea/
 .vscode/
-*.log
 priceguard.db
+.vercel/
+telegram_subscribers.json
+backend/test_keys.py
+
+
