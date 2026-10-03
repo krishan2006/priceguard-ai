@@ -76,10 +76,17 @@ app.include_router(dashboard.router)
 
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/index.py")
+@app.get("/api/health")
 def root():
     return {
+        "status": "healthy",
         "name": "PriceGuard AI",
         "version": "1.0.0",
-        "description": "Autonomous AI Price Monitoring Agent",
+        "gemini_configured": bool(os.getenv("GEMINI_API_KEY")),
+        "groq_configured": bool(os.getenv("GROQ_API_KEY")),
+        "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN")),
         "docs": "/docs",
     }
+
