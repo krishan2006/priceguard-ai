@@ -8,19 +8,23 @@ import tempfile
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
-    # Check for serverless / read-only filesystem environments (Vercel, AWS Lambda)
-    is_serverless = bool(
-        os.getenv("VERCEL")
-        or os.getenv("VERCEL_ENV")
-        or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
-        or os.getenv("LAMBDA_TASK_ROOT")
-        or os.path.exists("/var/task")
-    )
-    if is_serverless:
-        db_path = os.path.join(tempfile.gettempdir(), "priceguard.db")
-        DATABASE_URL = f"sqlite:///{db_path}"
-    else:
+    try:
+        # Check if local directory is writable
+        test_file = "./.test_write"
+        with open(test_file, "w") as f:
+            f.write("1")
+        if os.path.exists(test_file):
+            os.remove(test_file)
         DATABASE_URL = "sqlite:///./priceguard.db"
+    except Exception:
+        # Fallback to temp directory on serverless/read-only systems
+        try:
+            tmp_db = os.path.join(tempfile.gettempdir(), "priceguard.db")
+            with open(tmp_db, "a") as f:
+                pass
+            DATABASE_URL = f"sqlite:///{tmp_db}"
+        except Exception:
+            DATABASE_URL = "sqlite:///:memory:"
 
 engine = create_engine(
     DATABASE_URL,
